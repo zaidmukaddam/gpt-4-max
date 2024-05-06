@@ -19,6 +19,10 @@ This project is a chatbot application that uses [OpenAI's GPT-4 Turbo model](htt
 2. Install the dependencies using `pnpm install`
 3. Copy the `.env.example` file to a new file named `.env` and fill in your API keys and other configuration values
 
+## Setup Code Interpreter
+
+[Follow the instructions here to setup the code interpreter](https://github.com/cohere-ai/cohere-terrarium/)
+
 ## Usage
 
 Run the application using `pnpm dev`. Open your browser and navigate to the URL displayed in the console.

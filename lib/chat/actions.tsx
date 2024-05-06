@@ -8,6 +8,8 @@ import {
 } from 'ai/rsc'
 import OpenAI from 'openai'
 
+import { anthropic } from '@ai-sdk/anthropic';
+
 import {
     BotCard,
     BotMessage
@@ -18,15 +20,15 @@ import { nanoid } from '@/lib/utils'
 import { SpinnerMessage } from '@/components/stocks/message'
 import { format } from 'date-fns'
 import { SearchResults } from '@/components/max/search-results'
-import { experimental_streamText } from 'ai'
+import { experimental_generateText, experimental_streamText } from 'ai'
 import { createOpenAI } from '@ai-sdk/openai';
 import { Temperature } from '@/components/max/temperature'
 import { HourlyForecastData } from '@/lib/types'
 import { CodeBlock } from '@/components/ui/codeblock'
 import { Check, Cross, TerminalSquare } from 'lucide-react'
 import { Card } from '@/components/ui/card'
-import { rateLimit } from './ratelimit'
 import { SpinnerIcon } from '@/components/ui/icons'
+import Image from 'next/image';
 
 const client = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || ''
@@ -70,10 +72,8 @@ async function getDailyForecast({ latitude, longitude }: coordinates): Promise<H
 var imageHistory: any[] = []
 var imageBase64Final: string[] = []
 
-async function submitUserMessage(content: string, ispro?: boolean, imageBase64List?: { id: string, url: string }[]) {
+async function submitUserMessage(content: string, imageBase64List?: { id: string, url: string }[]) {
     'use server'
-
-    if (!ispro) await rateLimit();
 
     const aiState = getMutableAIState<typeof AI>()
 
@@ -139,7 +139,10 @@ async function submitUserMessage(content: string, ispro?: boolean, imageBase64Li
                 8. For any latex/katex or any expression which requires special rendering, you have to write wrap them around $$. Eg. $$x^2$$, $$\mathbf{F}{12}$$. Even if you write it in a middle of a sentence you should wrap it around $$ AT ALL COSTS!
                 9. DO NOT FORGET POINT 8.
                 10. To run python code use the code interpreter. always write a print statement at the end of the code to display the output.
-                11. DO NOT WRITE ALL THE CODE IN THE CODE INTERPRETER. JUST WRITE THE CODE YOU WANT TO RUN. NOT ALL CODE REQUESTS ARE CODE INTERPRETER REQUESTS.`
+                11. DO NOT WRITE ALL THE CODE IN THE CODE INTERPRETER. JUST WRITE THE CODE YOU WANT TO RUN. NOT ALL CODE REQUESTS ARE CODE INTERPRETER REQUESTS.
+                12. YOU CANNOUT PUT ANY COMMENTS IN THE CODE INTERPRETER. JUST THE CODE!
+                13. Python Libraries available: matplotlib-pyodide, six, cycler, pyparsing, packaging, kiwisolver, python-dateutil, pytz, fonttools, pillow, numpy, matplotlib, pandas.
+                14. Do not use plt.show() in the code interpreter. use plt.savefig('filename.png') to save the plot.`
             },
             ...imageHistory.map((image: any) => ({
                 role: image.role,
@@ -159,7 +162,7 @@ async function submitUserMessage(content: string, ispro?: boolean, imageBase64Li
 
             if (done) {
                 textStream.done()
-                aiState.done({
+                aiState.update({
                     ...aiState.get(),
                     messages: [
                         ...aiState.get().messages,
@@ -383,7 +386,7 @@ async function submitUserMessage(content: string, ispro?: boolean, imageBase64Li
                             </Card>
                         </BotCard>
                     )
-                    const response = await fetch('https://interpreter.gpt4max.cc/run_code/', {
+                    const response = await fetch('http://localhost:8080/', {
                         method: 'POST',
                         headers: {
                             accept: 'application/json',
@@ -394,7 +397,9 @@ async function submitUserMessage(content: string, ispro?: boolean, imageBase64Li
                         })
                     })
 
-                    if (!response.ok) {
+                    const data = await response.json()
+
+                    if (data.error) {
                         return (
                             <BotCard>
                                 <CodeBlock value={code} language='python' key={Math.random()} />
@@ -403,6 +408,7 @@ async function submitUserMessage(content: string, ispro?: boolean, imageBase64Li
                                         <TerminalSquare className="size-4 shrink-0" />
                                         <h5 className="text-red text-base">
                                             Error executing code...
+                                            {data.error.message}
                                         </h5>
                                     </div>
                                     <Cross size={16} className="text-red-500 size-4" />
@@ -411,65 +417,122 @@ async function submitUserMessage(content: string, ispro?: boolean, imageBase64Li
                         )
                     }
 
-                    const data = await response.json()
 
                     console.log('data:', data)
 
-                    const code_explanation = await groq.chat.completions.create({
-                        model: 'llama3-70b-8192',
-                        messages: [
-                            {
-                                role: 'system',
-                                content: `You gave a piece which has now been executed. Now, your job is to take the user's input and talk about the output of the code. The user's input, the code's input and output are all in the chat.`
-                            },
-                            {
-                                role: 'user',
-                                content: content,
-                            },
-                            {
-                                role: 'assistant',
-                                content: code,
-                            },
-                            {
-                                name: 'codeInterpreter',
-                                role: 'function',
-                                content: JSON.stringify({ result: data.result })
-                            }
-                        ],
-                        functions: [
-                            {
-                                name: 'codeInterpreter',
-                                description: 'Runs Python code and can also run Python code with it&apos;s internal libraries.',
-                                parameters: {
-                                    type: 'object',
-                                    properties: {
-                                        code: {
-                                            type: 'string',
-                                            description: 'The code snippet to interpret.'
+                    var final_exp = ''
+
+                    if (data.output_files.length > 0) {
+                        const code_haiku_exp = await experimental_generateText({
+                            model: anthropic('claude-3-haiku-20240307'),
+                            system: `You gave a code which has now been executed to result in an image output. Now, talk about the output of the code. The user's input, the code's input and output are all in the chat. You can also talk about the code's output in a fun and creative way.`,
+                            messages: [
+                                {
+                                    role: "user",
+                                    content: [
+                                        {
+                                            type: "text",
+                                            text: content
+                                        }
+                                    ]
+                                },
+                                {
+                                    role: 'assistant',
+                                    content: code
+                                },
+                                {
+                                    role: 'user',
+                                    content: [
+                                        {
+                                            type: "image",
+                                            image: data.output_files[0].b64_data
+                                        },
+                                        {
+                                            type: "text",
+                                            text: "Output Image of the code."
+                                        }
+                                    ]
+                                }
+                            ]
+                        })
+                        final_exp = code_haiku_exp.text || ""
+                        aiState.done({
+                            ...aiState.get(),
+                            messages: [
+                                ...aiState.get().messages,
+                                {
+                                    id: nanoid(),
+                                    role: 'function',
+                                    name: 'codeInterpreter',
+                                    content: JSON.stringify({ result: data.result })
+                                },
+                                {
+                                    id: nanoid(),
+                                    role: 'assistant',
+                                    content: code_haiku_exp.text || ""
+                                }
+                            ]
+                        })
+                    }
+                    else {
+                        const code_explanation = await groq.chat.completions.create({
+                            model: 'llama3-70b-8192',
+                            messages: [
+                                {
+                                    role: 'system',
+                                    content: `You gave a piece which has now been executed. Now, your job is to take the user's input and talk about the output of the code. The user's input, the code's input and output are all in the chat.`
+                                },
+                                {
+                                    role: 'user',
+                                    content: content,
+                                },
+                                {
+                                    role: 'assistant',
+                                    content: code,
+                                },
+                                {
+                                    name: 'codeInterpreter',
+                                    role: 'function',
+                                    content: JSON.stringify({ data })
+                                }
+                            ],
+                            functions: [
+                                {
+                                    name: 'codeInterpreter',
+                                    description: 'Runs Python code and can also run Python code with it&apos;s internal libraries.',
+                                    parameters: {
+                                        type: 'object',
+                                        properties: {
+                                            code: {
+                                                type: 'string',
+                                                description: 'The code snippet to interpret.'
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        ],
-                        max_tokens: 400
-                    })
-                    aiState.done({
-                        ...aiState.get(),
-                        messages: [
-                            ...aiState.get().messages,
-                            {
-                                id: nanoid(),
-                                role: 'function',
-                                name: 'codeInterpreter',
-                                content: JSON.stringify({ result: data.result })
-                            },
-                            {
-                                id: nanoid(),
-                                role: 'assistant',
-                                content: code_explanation.choices[0].message.content || ""
-                            }
-                        ]
-                    })
+                            ],
+                            max_tokens: 400
+                        })
+                        final_exp = code_explanation.choices[0].message.content || ""
+                        aiState.done({
+                            ...aiState.get(),
+                            messages: [
+                                ...aiState.get().messages,
+                                {
+                                    id: nanoid(),
+                                    role: 'function',
+                                    name: 'codeInterpreter',
+                                    content: JSON.stringify({ result: data.result })
+                                },
+                                {
+                                    id: nanoid(),
+                                    role: 'assistant',
+                                    content: code_explanation.choices[0].message.content || ""
+                                }
+                            ]
+                        })
+                    }
+
 
                     return (
                         <BotCard>
@@ -477,13 +540,17 @@ async function submitUserMessage(content: string, ispro?: boolean, imageBase64Li
                             <Card className="p-3 md:p-4 w-full flex justify-between items-center mb-2">
                                 <div className="flex items-center space-x-2 flex-1 min-w-0">
                                     <TerminalSquare className="size-4 shrink-0" />
-                                    <h5 className="text-white text-base">
-                                        {data.result}
-                                    </h5>
+                                    {data.output_files.length > 0 ? (
+                                        <Image src={`data:image/png;base64,${data.output_files[0].b64_data}`} alt="Output Image" height={500} width={400} />
+                                    ) : (
+                                        <h5 className="text-white text-base">
+                                            {data.std_out}
+                                        </h5>
+                                    )}
                                 </div>
                                 <Check size={16} className="text-green-500 size-4" />
                             </Card>
-                            <BotMessage content={code_explanation.choices[0].message.content || ""} />
+                            <BotMessage content={final_exp} />
                         </BotCard>
                     )
                 }

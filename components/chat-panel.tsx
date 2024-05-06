@@ -4,7 +4,7 @@ import { PromptForm } from '@/components/prompt-form'
 import { ButtonScrollToBottom } from '@/components/button-scroll-to-bottom'
 import { FooterText } from '@/components/footer'
 import { useActions, useUIState } from 'ai/rsc'
-import type { AI } from '@/lib/chat/actions'
+import type { AI } from '@/lib/chat/actions-new'
 import { nanoid } from 'nanoid'
 import { UserMessage } from './stocks/message'
 import { cn } from '@/lib/utils'
@@ -17,7 +17,6 @@ export interface ChatPanelProps {
   setInput: (value: string) => void
   isAtBottom: boolean
   scrollToBottom: () => void
-  ispro?: boolean
 }
 
 export function ChatPanel({
@@ -27,7 +26,6 @@ export function ChatPanel({
   setInput,
   isAtBottom,
   scrollToBottom,
-  ispro
 }: ChatPanelProps) {
   const [messages, setMessages] = useUIState<typeof AI>()
   const { submitUserMessage } = useActions()
@@ -74,7 +72,6 @@ export function ChatPanel({
                   try {
                     const responseMessage = await submitUserMessage(
                       example.message,
-                      ispro
                     )
 
                     setMessages(currentMessages => [
@@ -99,7 +96,7 @@ export function ChatPanel({
         </div>
 
         <div className="grid gap-4 sm:pb-4">
-          <PromptForm input={input} setInput={setInput} ispro={ispro} />
+          <PromptForm input={input} setInput={setInput} />
           <FooterText className="hidden sm:block" />
         </div>
       </div>

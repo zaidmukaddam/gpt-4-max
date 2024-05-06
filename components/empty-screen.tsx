@@ -3,13 +3,8 @@ import { Badge } from './ui/badge'
 import { Card, CardContent } from './ui/card'
 import { Button } from './ui/button'
 
-interface EmptyScreenProps {
-  remaining?: number
-  ispro?: boolean
-}
 
-export function EmptyScreen({ remaining, ispro }: EmptyScreenProps) {
-  const rem = remaining ?? 0
+export function EmptyScreen() {
   return (
     <div className="mx-auto max-w-2xl px-4">
       <div className="flex flex-col gap-2 rounded-2xl bg-zinc-50 dark:shadow-xl dark:bg-transparent/10 border sm:p-8 p-4 text-sm sm:text-base text-center">
@@ -32,20 +27,6 @@ export function EmptyScreen({ remaining, ispro }: EmptyScreenProps) {
           </ExternalLink>
           .
         </p>
-        {!ispro && (
-          <Card>
-            <CardContent className='gap-2 flex flex-col mx-auto text-center items-center justify-center pt-5 rounded-xl dark:border-white'>
-              {rem} responses left for the day
-              <Button
-                onClick={() => {
-                  window.location.href = '/pro'
-                }}
-              >
-                Go Unlimited
-              </Button>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   )

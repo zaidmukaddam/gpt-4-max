@@ -1,4 +1,4 @@
-import { UIState } from '@/lib/chat/actions'
+import { UIState } from '@/lib/chat/actions-new'
 
 export interface ChatList {
   messages: UIState
@@ -10,6 +10,8 @@ export function ChatList({ messages }: ChatList) {
       {messages.map(message => (
         <div key={message.id}>
           {message.display}
+          {message.spinner}
+          {message.attachments}
         </div>
       ))}
     </div>

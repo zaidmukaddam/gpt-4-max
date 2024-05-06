@@ -7,7 +7,7 @@ import { useActions, useUIState } from 'ai/rsc'
 import { Cross2Icon } from '@radix-ui/react-icons'
 
 import { UserMessage } from './stocks/message'
-import { type AI } from '@/lib/chat/actions'
+import { type AI } from '@/lib/chat/actions-new'
 import { Button } from '@/components/ui/button'
 import { IconArrowElbow, IconPlus } from '@/components/ui/icons'
 import {
@@ -22,11 +22,9 @@ import { toast } from 'sonner'
 export function PromptForm({
   input,
   setInput,
-  ispro
 }: {
   input: string
   setInput: (value: string) => void
-  ispro?: boolean
 }) {
   const { formRef, onKeyDown } = useEnterSubmit()
   const inputRef = React.useRef<HTMLTextAreaElement>(null)
@@ -91,7 +89,7 @@ export function PromptForm({
 
         try {
           // Submit and get response message
-          const responseMessage = await submitUserMessage(value, ispro, images.length > 0 ? images : undefined)
+          const responseMessage = await submitUserMessage(value, images.length > 0 ? images : undefined)
           setMessages(currentMessages => [...currentMessages, responseMessage])
         } catch {
           toast(
