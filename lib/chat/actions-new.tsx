@@ -55,6 +55,8 @@ You are a weather chat bot and you can help users check weather conditions, step
 
 The user just asked for the daily forecast for a specific location. You provided the user with the daily weather forecast for the next few days. DON'T RESPOND WITH ANY DATA, JUST WRITE A SUMMARY.
 
+The function details are given for context you cannot use them in your response. You cannot call the function in your response.
+
 EXAMPLE: "Here's the daily forecast for the next few days in [location].
 `
 
@@ -334,16 +336,30 @@ async function submitUserMessage(content: string, imageBase64List?: { id: string
                             ]
 
                             const stream = await client.chat.completions.create({
-                                model: 'llama3-8b-8192',
-                                stream: true,
-                                messages: messages
+                                model: 'llama3-70b-8192',
+                                messages: messages,
+                                functions: [
+                                    {
+                                        name: 'getWeather',
+                                        description: 'Get the current weather for a location.',
+                                        parameters: {
+                                            type: 'object',
+                                            properties: {
+                                                lat: {
+                                                    type: 'string',
+                                                    description: 'The latitude of the location for which the weather map is to be displayed.'
+                                                },
+                                                lon: {
+                                                    type: 'string',
+                                                    description: 'The longitude of the location for which the weather map is to be displayed.'
+                                                }
+                                            }
+                                        }
+                                    }
+                                ],
                             })
 
-                            let content = ''
-                            for await (const chunk of stream) {
-                                content += chunk.choices[0]?.delta?.content || ''
-                                uiStream.update(<BotMessage content={content} />)
-                            }
+                            let content = stream.choices[0].message.content
 
                             uiStream.update(
                                 <div>
